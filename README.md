@@ -50,8 +50,8 @@ workshop-starter/
 - **Lab 2** — Genera i test con `/tests` (salva in `src/routes/__tests__/products.test.ts`), il JSDoc con `/doc`, e crea `.github/copilot-instructions.md`.
 - **Lab 4** — Il componente React `ProductCard` consumerà `GET /api/products`. ⚠️ Nota porte: l'API gira sulla `:3000`; se il frontend usa un dev server separato, configura un proxy o abilita CORS.
 
-## Nota sul bug intenzionale
-`src/middleware/errorHandler.ts` accede a `err.status`, proprietà inesistente sul tipo `Error`: vedrai l'errore TypeScript sottolineato in VS Code. È voluto — lo correggerai nel Lab 1 con **/fix**. Con `npm run dev` (tsx, transpile-only) il server parte comunque; `npm run build` invece fallirà finché il bug non è corretto.
+## Nota sul bug intenzionale (risolto)
+Il bug del Lab 1 in `src/middleware/errorHandler.ts` — l'accesso a `err.status`, proprietà inesistente sul tipo `Error` — è già stato corretto: il file definisce ora un'interfaccia `AppError extends Error` con `status?: number`. `npm run build` compila correttamente.
 
 ---
 

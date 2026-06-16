@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { orders, getNextOrderId } from '../data/orders';
 import { Order, NewOrder } from '../types/order';
+import { paginate } from '../lib/pagination';
+import { collectValidationErrors } from '../lib/validation';
 
 const router = Router();
 
@@ -16,17 +18,11 @@ const router = Router();
  * @returns 400 - If `page` or `limit` is less than 1.
  */
 router.get('/', async (req, res) => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limitRaw = parseInt(req.query.limit as string);
-  const limit = Number.isNaN(limitRaw) ? 10 : limitRaw;
-
-  if (page < 1 || limit < 1) {
-    return res.status(400).json({ error: 'page and limit must be positive integers' });
+  const result = paginate(orders, req.query.page, req.query.limit);
+  if ('error' in result) {
+    return res.status(400).json(result);
   }
-
-  const startIndex = (page - 1) * limit;
-  const endIndex = page * limit;
-  return res.json(orders.slice(startIndex, endIndex));
+  return res.json(result.data);
 });
 
 /**
@@ -44,25 +40,29 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   const { productId, quantity, status } = req.body as Partial<NewOrder>;
 
-  const isProductIdValid = typeof productId === 'number' && Number.isInteger(productId) && productId > 0;
-  const isQuantityValid = typeof quantity === 'number' && Number.isInteger(quantity) && quantity > 0;
-  const isStatusValid = status === undefined || typeof status === 'string';
+  const validationError = collectValidationErrors({
+    productId: {
+      valid: typeof productId === 'number' && Number.isInteger(productId) && productId > 0,
+      message: 'productId must be a positive integer',
+    },
+    quantity: {
+      valid: typeof quantity === 'number' && Number.isInteger(quantity) && quantity > 0,
+      message: 'quantity must be a positive integer',
+    },
+    status: {
+      valid: status === undefined || typeof status === 'string',
+      message: 'status must be a string when provided',
+    },
+  });
 
-  if (!isProductIdValid || !isQuantityValid || !isStatusValid) {
-    return res.status(400).json({
-      error: 'Validation failed',
-      details: {
-        productId: 'productId must be a positive integer',
-        quantity: 'quantity must be a positive integer',
-        status: 'status must be a string when provided',
-      },
-    });
+  if (validationError) {
+    return res.status(400).json(validationError);
   }
 
   const newOrder: Order = {
     id: getNextOrderId(),
-    productId,
-    quantity,
+    productId: productId as number,
+    quantity: quantity as number,
     ...(status !== undefined ? { status } : {}),
   };
 

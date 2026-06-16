@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { products, getNextId } from '../data/products';
 import { Product, NewProduct } from '../types/product';
+import { paginate } from '../lib/pagination';
+import { collectValidationErrors } from '../lib/validation';
 
 const router = Router();
 
@@ -40,17 +42,11 @@ export default router;
  * @returns 400 - If `page` or `limit` is less than 1.
  */
 router.get('/', async (req, res) => {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-
-    if (page < 1 || limit < 1) {
-        return res.status(400).json({ error: 'page and limit must be positive integers' });
+    const result = paginate(products, req.query.page, req.query.limit);
+    if ('error' in result) {
+        return res.status(400).json(result);
     }
-
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const paginatedProducts = products.slice(startIndex, endIndex);
-    return res.json(paginatedProducts);
+    return res.json(result.data);
 });
 
 /**
@@ -69,25 +65,29 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
     const { name, price, category } = req.body as Partial<NewProduct>;
 
-    const isNameValid = typeof name === 'string' && name.trim().length > 0;
-    const isPriceValid = typeof price === 'number' && Number.isFinite(price);
-    const isCategoryValid = category === undefined || typeof category === 'string';
+    const validationError = collectValidationErrors({
+        name: {
+            valid: typeof name === 'string' && name.trim().length > 0,
+            message: 'name must be a non-empty string',
+        },
+        price: {
+            valid: typeof price === 'number' && Number.isFinite(price),
+            message: 'price must be a valid number',
+        },
+        category: {
+            valid: category === undefined || typeof category === 'string',
+            message: 'category must be a string when provided',
+        },
+    });
 
-    if (!isNameValid || !isPriceValid || !isCategoryValid) {
-        return res.status(400).json({
-            error: 'Validation failed',
-            details: {
-                name: 'name must be a non-empty string',
-                price: 'price must be a valid number',
-                category: 'category must be a string when provided',
-            },
-        });
+    if (validationError) {
+        return res.status(400).json(validationError);
     }
 
     const newProduct: Product = {
         id: getNextId(),
-        name: name.trim(),
-        price,
+        name: (name as string).trim(),
+        price: price as number,
         ...(category !== undefined ? { category } : {}),
     };
 

@@ -84,4 +84,13 @@ describe('POST /api/orders', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
   });
+
+  it('details contiene solo i campi effettivamente invalidi', async () => {
+    const res = await request(createApp())
+      .post('/api/orders')
+      .send({ productId: 1, quantity: 0 }); // productId valido, quantity no
+    expect(res.status).toBe(400);
+    expect(res.body.details).toHaveProperty('quantity');
+    expect(res.body.details).not.toHaveProperty('productId');
+  });
 });

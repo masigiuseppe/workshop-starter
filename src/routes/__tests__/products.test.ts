@@ -87,4 +87,13 @@ describe('POST /api/products', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
   });
+
+  it('details contiene solo i campi effettivamente invalidi', async () => {
+    const res = await request(createApp())
+      .post('/api/products')
+      .send({ name: 'Valid Name' }); // name valido, price mancante
+    expect(res.status).toBe(400);
+    expect(res.body.details).toHaveProperty('price');
+    expect(res.body.details).not.toHaveProperty('name');
+  });
 });
