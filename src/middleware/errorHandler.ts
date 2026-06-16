@@ -10,7 +10,7 @@ import { Request, Response, NextFunction } from 'express';
  *     Suggerimento: definisci un tipo errore con statusCode, oppure usa
  *     un fallback (es. 500) quando lo status non è presente.
  */
-export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: Error & { status?: number }, _req: Request, res: Response, _next: NextFunction) {
   console.error('[errorHandler]', err.message);
-  res.status(err.status).json({ error: err.message });
+  res.status(err.status || 500).json({ error: err.message });
 }

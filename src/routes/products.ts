@@ -27,3 +27,41 @@ const router = Router();
 
 
 export default router;
+
+router.get('/', async (req, res) => {   
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedProducts = products.slice(startIndex, endIndex);
+    res.json(paginatedProducts);
+});
+
+router.post('/', async (req, res) => {
+    const { name, price, category } = req.body as Partial<NewProduct>;
+
+    const isNameValid = typeof name === 'string' && name.trim().length > 0;
+    const isPriceValid = typeof price === 'number' && Number.isFinite(price);
+    const isCategoryValid = category === undefined || typeof category === 'string';
+
+    if (!isNameValid || !isPriceValid || !isCategoryValid) {
+        return res.status(400).json({
+            error: 'Validation failed',
+            details: {
+                name: 'name must be a non-empty string',
+                price: 'price must be a valid number',
+                category: 'category must be a string when provided',
+            },
+        });
+    }
+
+    const newProduct: Product = {
+        id: getNextId(),
+        name: name.trim(),
+        price,
+        ...(category !== undefined ? { category } : {}),
+    };
+
+    products.push(newProduct);
+    return res.status(201).json(newProduct);
+});
