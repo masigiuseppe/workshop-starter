@@ -52,3 +52,130 @@ workshop-starter/
 
 ## Nota sul bug intenzionale
 `src/middleware/errorHandler.ts` accede a `err.status`, proprietà inesistente sul tipo `Error`: vedrai l'errore TypeScript sottolineato in VS Code. È voluto — lo correggerai nel Lab 1 con **/fix**. Con `npm run dev` (tsx, transpile-only) il server parte comunque; `npm run build` invece fallirà finché il bug non è corretto.
+
+---
+
+## API Endpoints
+
+Il server gira su `http://localhost:3000`. Tutti gli endpoint sono prefissati con `/api`.
+
+### `GET /api/health`
+
+Health-check. Utile per verificare che il server sia up.
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+**Response 200**
+```json
+{ "status": "ok", "timestamp": "2026-06-16T10:00:00.000Z" }
+```
+
+---
+
+### `GET /api/products`
+
+Restituisce la lista paginata dei prodotti.
+
+| Query param | Tipo    | Default | Note                        |
+|-------------|---------|---------|-----------------------------|
+| `page`      | integer | `1`     | Deve essere ≥ 1             |
+| `limit`     | integer | `10`    | Deve essere ≥ 1             |
+
+```bash
+# Tutti i prodotti (prima pagina, limite 10)
+curl http://localhost:3000/api/products
+
+# Pagina 2 con 2 prodotti per pagina
+curl "http://localhost:3000/api/products?page=2&limit=2"
+```
+
+**Response 200**
+```json
+[
+  { "id": 1, "name": "Wireless Mouse", "price": 29.99, "category": "electronics" },
+  { "id": 2, "name": "Mechanical Keyboard", "price": 89.00, "category": "electronics" }
+]
+```
+
+**Response 400** — `page` o `limit` < 1
+```json
+{ "error": "page and limit must be positive integers" }
+```
+
+---
+
+### `POST /api/products`
+
+Crea un nuovo prodotto e lo aggiunge allo store in memoria.
+
+| Campo      | Tipo   | Obbligatorio | Note                  |
+|------------|--------|--------------|-----------------------|
+| `name`     | string | ✅           | Non può essere vuoto  |
+| `price`    | number | ✅           | Deve essere un numero finito |
+| `category` | string | ❌           | Opzionale             |
+
+```bash
+# Creazione valida → 201
+curl -X POST http://localhost:3000/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name": "USB-C Cable", "price": 12.99, "category": "electronics"}'
+
+# Senza category → 201
+curl -X POST http://localhost:3000/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Sticky Notes", "price": 2.50}'
+
+# Body non valido → 400
+curl -X POST http://localhost:3000/api/products \
+  -H "Content-Type: application/json" \
+  -d '{"price": "non-un-numero"}'
+```
+
+**Response 201**
+```json
+{ "id": 5, "name": "USB-C Cable", "price": 12.99, "category": "electronics" }
+```
+
+**Response 400**
+```json
+{
+  "error": "Validation failed",
+  "details": {
+    "name": "name must be a non-empty string",
+    "price": "price must be a valid number",
+    "category": "category must be a string when provided"
+  }
+}
+```
+
+---
+
+## Eseguire i test
+
+```bash
+npm test
+```
+
+Esegue l'intera suite Jest (transpilazione con `ts-jest`):
+
+```
+PASS  src/routes/__tests__/health.test.ts
+PASS  src/routes/__tests__/products.test.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       12 passed, 12 total
+```
+
+Per eseguire solo i test di un file specifico:
+
+```bash
+npx jest src/routes/__tests__/products.test.ts
+```
+
+Per eseguire in modalità watch (utile durante lo sviluppo):
+
+```bash
+npx jest --watch
+```

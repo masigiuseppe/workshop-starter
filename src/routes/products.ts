@@ -28,6 +28,17 @@ const router = Router();
 
 export default router;
 
+/**
+ * GET /api/products
+ *
+ * Returns a paginated list of all products.
+ *
+ * @query page  - Page number (default: 1). Must be a positive integer.
+ * @query limit - Number of items per page (default: 10). Must be a positive integer.
+ *
+ * @returns 200 - Array of Product objects for the requested page.
+ * @returns 400 - If `page` or `limit` is less than 1.
+ */
 router.get('/', async (req, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -42,6 +53,19 @@ router.get('/', async (req, res) => {
     return res.json(paginatedProducts);
 });
 
+/**
+ * POST /api/products
+ *
+ * Creates a new product and appends it to the in-memory store.
+ *
+ * @body name     {string}  Required. Non-empty name of the product.
+ * @body price    {number}  Required. Finite numeric price of the product.
+ * @body category {string}  Optional. Category label for the product.
+ *
+ * @returns 201 - The newly created Product object (including generated `id`).
+ * @returns 400 - If `name` is missing/empty, `price` is not a finite number,
+ *                or `category` is provided but is not a string.
+ */
 router.post('/', async (req, res) => {
     const { name, price, category } = req.body as Partial<NewProduct>;
 
