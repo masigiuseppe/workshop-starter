@@ -1,5 +1,8 @@
+import express from 'express';
 import request from 'supertest';
 import { createApp } from '../../app';
+import { createProductsRouter } from '../products';
+import { ProductRepository } from '../../repositories/productRepository';
 
 describe('GET /api/products', () => {
   it('risponde 200 con un array', async () => {
@@ -86,5 +89,35 @@ describe('POST /api/products', () => {
       .send({ name: 'Bad Category', price: 5.0, category: 123 });
     expect(res.status).toBe(400);
     expect(res.body.error).toBeDefined();
+  });
+
+  it('details contiene solo i campi effettivamente invalidi', async () => {
+    const res = await request(createApp())
+      .post('/api/products')
+      .send({ name: 'Valid Name' }); // name valido, price mancante
+    expect(res.status).toBe(400);
+    expect(res.body.details).toHaveProperty('price');
+    expect(res.body.details).not.toHaveProperty('name');
+  });
+});
+
+describe('createProductsRouter (dependency injection)', () => {
+  it('usa il repository iniettato invece di quello in memoria', async () => {
+    const fake: ProductRepository = {
+      list: () => [{ id: 99, name: 'Injected', price: 1 }],
+      create: (input) => ({ id: 1000, ...input }),
+    };
+    const app = express();
+    app.use(express.json());
+    app.use('/api/products', createProductsRouter(fake));
+
+    const list = await request(app).get('/api/products');
+    expect(list.body).toEqual([{ id: 99, name: 'Injected', price: 1 }]);
+
+    const created = await request(app)
+      .post('/api/products')
+      .send({ name: 'New', price: 5 });
+    expect(created.status).toBe(201);
+    expect(created.body.id).toBe(1000);
   });
 });
