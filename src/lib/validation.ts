@@ -14,6 +14,12 @@ export interface ValidationError {
 }
 
 /**
+ * Esito di una validazione di dominio: il valore normalizzato in caso di
+ * successo, oppure l'errore pronto per la risposta 400.
+ */
+export type ValidationResult<T> = { value: T } | { error: ValidationError };
+
+/**
  * Raccoglie gli errori dei campi che non hanno superato la validazione.
  *
  * @param checks - Mappa campo → { valid, message }.

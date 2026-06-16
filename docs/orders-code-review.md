@@ -5,12 +5,12 @@
 > `src/routes/orders.ts`, `src/data/orders.ts`, `src/types/order.ts` e
 > `src/routes/__tests__/orders.test.ts`.
 
-> **Aggiornamento** — I fix a basso/medio rischio **#1, #4, #5, #6, #7** sono
-> stati applicati (helper condivisi `src/lib/pagination.ts` e
-> `src/lib/validation.ts`; route `orders` e `products` refactorate; test
-> aggiunti per `details` per-campo). Build pulita, 25/25 test verdi.
-> Restano aperti: **#2, #3** (refactor architetturale — repository/separazione
-> livelli), **#8, #9** (cambiano contratto del tipo / semantica di dominio).
+> **Aggiornamento** — Applicati **#1, #4, #5, #6, #7** (helper condivisi
+> `src/lib/pagination.ts` / `src/lib/validation.ts`) e ora anche **#2, #3**
+> (separazione validazione/dominio/HTTP + repository iniettabile:
+> `src/validators/`, `src/repositories/`, router come factory). Build pulita,
+> 26/26 test verdi (incluso un test di dependency injection). Restano aperti:
+> **#8, #9** (cambiano contratto del tipo / semantica di dominio).
 
 ## Sintesi
 
@@ -27,8 +27,8 @@ I problemi reali, in ordine di impatto, sono:
 | # | Smell | Categoria | Gravità | Stato |
 |---|-------|-----------|---------|-------|
 | 1 | Duplicazione paginazione tra `orders` e `products` | Duplicazione (DRY) | Alta | ✅ Risolto |
-| 2 | Handler con troppe responsabilità (parsing+validazione+persistenza+HTTP) | SRP | Alta | ⬜ Aperto |
-| 3 | Accoppiamento diretto allo store in memoria | DIP / OCP | Alta | ⬜ Aperto |
+| 2 | Handler con troppe responsabilità (parsing+validazione+persistenza+HTTP) | SRP | Alta | ✅ Risolto |
+| 3 | Accoppiamento diretto allo store in memoria | DIP / OCP | Alta | ✅ Risolto |
 | 4 | `details` del 400 elenca sempre tutti i campi | Correttezza / chiarezza | Media | ✅ Risolto |
 | 5 | Duplicazione del messaggio/forma dell'errore di validazione | Duplicazione (DRY) | Media | ✅ Risolto |
 | 6 | Gestione di `limit`/`page` incoerente tra le due route | Coerenza | Media | ✅ Risolto |
@@ -67,7 +67,7 @@ export function paginate<T>(items: T[], pageRaw: unknown, limitRaw: unknown) {
 > (→ default) da valori `< 1` (→ 400), così il comportamento di `?limit=0`
 > diventa identico nelle due API (vedi #6).
 
-### 2. Handler con troppe responsabilità (SRP) — *Alta*
+### 2. Handler con troppe responsabilità (SRP) — *Alta* — ✅ RISOLTO
 
 `router.post('/')` (`src/routes/orders.ts:44-71`) fa, da solo: lettura body,
 validazione, costruzione dell'entità, generazione id, **persistenza**
@@ -80,7 +80,12 @@ con Express.
 `ordersRepository.create(newOrder)` e l'handler che si limita a orchestrare e
 tradurre in status code.
 
-### 3. Accoppiamento diretto allo store in memoria (DIP/OCP) — *Alta*
+> **Risolto**: la validazione vive in `src/validators/orderValidator.ts`
+> (restituisce il `NewOrder` normalizzato o l'errore), la persistenza in
+> `src/repositories/orderRepository.ts`. L'handler `POST` ora fa solo:
+> valida → `repository.create()` → risponde. Stesso schema per `products`.
+
+### 3. Accoppiamento diretto allo store in memoria (DIP/OCP) — *Alta* — ✅ RISOLTO
 
 La route importa direttamente l'array concreto e la funzione id da
 `../data/orders` (`src/routes/orders.ts:2`). Il layer di trasporto dipende da un
@@ -100,6 +105,13 @@ interface OrderRepository {
 La route dipende dall'interfaccia; l'implementazione in memoria è iniettabile.
 (Coerente con la regola di progetto "no DB/ORM": resta in memoria, ma dietro
 un'astrazione.)
+
+> **Risolto**: `src/repositories/orderRepository.ts` e `productRepository.ts`
+> definiscono l'interfaccia + l'implementazione `inMemory*`. I router sono ora
+> factory (`createOrdersRouter(repo?)`, `createProductsRouter(repo?)`) con il
+> repo in default-arg, quindi `app.ts` resta invariato (usa il default export)
+> ma il repository è iniettabile — verificato da un test di DI in
+> `products.test.ts`. Le route non importano più gli array da `src/data/`.
 
 ### 4. `details` del 400 elenca sempre tutti i campi — *Media* (anche bug di chiarezza) — ✅ RISOLTO
 
@@ -194,7 +206,6 @@ mai conteggi assoluti, ma è da tenere a mente.
 
 1. ✅ ~~Estrarre l'helper di paginazione (#1, #6, #7)~~ — fatto.
 2. ✅ ~~Correggere `details` per-campo (#4) e centralizzare la risposta di errore (#5)~~ — fatto.
-3. ⬜ Introdurre il repository e separare validazione/dominio/HTTP (#2, #3) — più
-   invasivo; valutarlo come refactor architetturale dedicato.
+3. ✅ ~~Introdurre il repository e separare validazione/dominio/HTTP (#2, #3)~~ — fatto.
 4. ⬜ Opzionali: union tipata per `status` (#8), integrità referenziale di
    `productId` (#9).
